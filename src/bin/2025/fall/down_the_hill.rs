@@ -1,4 +1,55 @@
 use std::{collections::HashSet, io::stdin};
+use std::any::Any
+
+/* HEAP STACK CODE */
+
+enum HeapStackReturn {
+    Call(Box<dyn HeapStackPlate>),
+    Return(Box<dyn Any>),
+}
+
+trait HeapStackPlate {
+    fn call(&mut self, last_return: Option<Box<dyn Any>>) -> HeapStackReturn;
+}
+
+fn run_stack(plate: Box<dyn HeapStackPlate>) -> Box<dyn Any> {
+    let mut stack: Vec<Box<dyn HeapStackPlate>> = vec![plate];
+
+    let mut last_return: Option<Box<dyn Any>> = None;
+
+    while let Some(top) = stack.last_mut() {
+        match top.call(last_return.take()) {
+            HeapStackReturn::Call(new_plate) => {
+                stack.push(new_plate);
+
+                last_return = None;
+            }
+            HeapStackReturn::Return(val) => {
+                stack.pop();
+
+                last_return = Some(val);
+            }
+        }
+    }
+
+    last_return.take().unwrap()
+}
+
+/* HEAP STACK CODE */
+
+struct SolutionPlate<'a> {
+    path: &'a Box<[char]>,
+    position: usize,
+    level: i64,
+    current_max: i64,
+    max_position_set: HashSet<usize>,
+}
+
+impl<'a> HeapStackPlate for SolutionPlate<'a> {
+    fn call(&mut self, last_return: Option<Box<dyn Any>>) -> HeapStackReturn {
+
+    }
+}
 
 enum MaxResult {
     Same,
