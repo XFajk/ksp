@@ -1,6 +1,10 @@
-use std::any::Any;
-use std::rc::Rc;
-use std::{collections::HashSet, io::stdin};
+use std::{
+    any::Any,
+    cell::RefCell,
+    collections::{hash_set, HashMap, HashSet},
+    io::stdin,
+    rc::Rc,
+};
 
 /* HEAP STACK CODE */
 
@@ -41,6 +45,10 @@ fn run_stack(plate: Box<dyn HeapStackPlate>) -> Box<dyn Any> {
 
 /* HEAP STACK CODE */
 
+thread_local! {
+    static SOLUTION_CACHE: RefCell<HashMap<(usize, i64), HashSet<usize>>> = RefCell::new(HashMap::new());
+}
+
 #[derive(Copy, Clone, Debug)]
 enum SolutionState {
     Start,
@@ -80,6 +88,13 @@ impl HeapStackPlate for SolutionPlate {
                 if self.position >= self.path.len() {
                     let max_position_set = self.max_position_set;
                     self.max_position_set = HashSet::new();
+
+                    if let Some('?') = self.path.get(self.position - 1) {
+                        SOLUTION_CACHE.with_borrow_mut(|cache| {
+                            let _ = cache
+                                .insert((self.position, self.level), max_position_set.clone());
+                        });
+                    }
 
                     return (HeapStackReturn::Return(Box::new(max_position_set)), self);
                 }
@@ -122,6 +137,13 @@ impl HeapStackPlate for SolutionPlate {
                         )
                     }
                     '?' => {
+
+                        SOLUTION_CACHE.with_borrow(|cache| {
+                            if let Some(hash_set) = cache.get(&(self.position, self.level)) {
+ 
+                            }
+                        });
+
                         self.state = SolutionState::AfterFirstBranch;
 
                         let max_position_set = self.max_position_set.clone();
@@ -145,10 +167,7 @@ impl HeapStackPlate for SolutionPlate {
                 self.state = SolutionState::Done;
 
                 let max_position_set = self.max_position_set;
-                self.max_position_set = *last_return
-                    .unwrap()
-                    .downcast::<HashSet<usize>>()
-                    .unwrap();
+                self.max_position_set = *last_return.unwrap().downcast::<HashSet<usize>>().unwrap();
 
                 (
                     HeapStackReturn::Call(Box::new(SolutionPlate {
@@ -163,15 +182,17 @@ impl HeapStackPlate for SolutionPlate {
                 )
             }
             SolutionState::Done => {
-                let temp_set = *last_return
-                        .unwrap()
-                        .downcast::<HashSet<usize>>()
-                        .unwrap();
-                
-                let result_set: HashSet<usize> = self.max_position_set
-                    .union(&temp_set)
-                    .cloned() 
-                    .collect();
+                let temp_set = *last_return.unwrap().downcast::<HashSet<usize>>().unwrap();
+
+                let result_set: HashSet<usize> =
+                    self.max_position_set.union(&temp_set).cloned().collect();
+
+                if let Some('?') = self.path.get(self.position - 1) {
+                    SOLUTION_CACHE.with_borrow_mut(|cache| {
+                        let _ =
+                            cache.insert((self.position, self.level), result_set.clone());
+                    });
+                }
 
                 (HeapStackReturn::Return(Box::new(result_set)), self)
             }
